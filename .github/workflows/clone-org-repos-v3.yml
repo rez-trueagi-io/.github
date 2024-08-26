@@ -1,0 +1,55 @@
+name: Clone Repos to Current Org v3
+
+on:
+  workflow_dispatch:
+
+jobs:
+  clone_repos:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install GitHub CLI and Git
+        run: |
+          sudo apt-get update
+          sudo apt-get install gh git -y
+
+      - name: Authenticate with GitHub
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
+
+      - name: Configure Git to Use GitHub Token
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git config --global credential.helper "store --file=.git-credentials"
+
+          # Store the GitHub credentials
+          echo "https://${{ secrets.GITHUB_TOKEN }}:@github.com" > ~/.git-credentials
+
+      - name: Set Variables
+        id: vars
+        run: |
+          CURRENT_ORG="${{ github.repository_owner }}"
+          SOURCE_ORG="${CURRENT_ORG#rez-}"
+
+          echo "SOURCE_ORG=$SOURCE_ORG" >> $GITHUB_ENV
+          echo "TARGET_ORG=$CURRENT_ORG" >> $GITHUB_ENV
+
+      - name: Clone and mirror repositories to inferred target org
+        run: |
+          mkdir -p cloned-repos
+          cd cloned-repos
+
+          gh repo list $SOURCE_ORG --json name -q '.[].name' | while read repo; do
+            echo "Cloning $repo from $SOURCE_ORG"
+            git clone https://github.com/$SOURCE_ORG/$repo.git
+            cd $repo
+            
+            git remote set-url origin https://github.com/$TARGET_ORG/$repo.git
+            echo "Pushing $repo to $TARGET_ORG"
+            
+            git push --mirror
+            cd ..
+            rm -rf $repo
+          done
