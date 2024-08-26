@@ -1,0 +1,54 @@
+name: Clone Repos to Current Org
+
+on:
+  workflow_dispatch:
+
+jobs:
+  clone_repos:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install GitHub CLI and Git
+        run: |
+          sudo apt-get update
+          sudo apt-get install gh git -y
+
+      - name: Authenticate with GitHub
+        run: gh auth login --with-token < ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set Variables
+        id: vars
+        run: |
+          # Get the current organization name
+          CURRENT_ORG="${{ github.repository_owner }}"
+
+          # Infer the source organization by removing 'rez-' prefix
+          SOURCE_ORG="${CURRENT_ORG#rez-}"
+
+          echo "SOURCE_ORG=$SOURCE_ORG" >> $GITHUB_ENV
+          echo "TARGET_ORG=$CURRENT_ORG" >> $GITHUB_ENV
+
+      - name: Clone and mirror repositories to inferred target org
+        run: |
+          mkdir -p cloned-repos
+          cd cloned-repos
+
+          # List repositories and clone each one from the source org
+          gh repo list $SOURCE_ORG --json name -q '.[].name' | while read repo; do
+            echo "Cloning $repo from $SOURCE_ORG"
+            git clone https://github.com/$SOURCE_ORG/$repo.git
+            cd $repo
+            
+            # Set the new origin URL to the target organization
+            git remote set-url origin https://github.com/$TARGET_ORG/$repo.git
+            echo "Pushing $repo to $TARGET_ORG"
+            
+            # Push the cloned repo to the target organization
+            git push --mirror
+            
+            # Move back to the cloned-repos directory and clean up
+            cd ..
+            rm -rf $repo
+          done
