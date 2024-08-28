@@ -1,0 +1,30 @@
+name: Clone Model Repository
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  clone-repo:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout the repository
+      uses: actions/checkout@v3
+    
+    - name: Install Git LFS
+      run: |
+        curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | sudo bash
+        sudo apt-get install git-lfs
+        git lfs install
+
+    - name: Clone the model repository with large files
+      run: |
+        git clone https://huggingface.co/koboldcpp/mmproj
+
+    # If you want to skip large files and just get the pointers, use this step instead
+    #- name: Clone the model repository without large files
+    #  run: |
+    #    GIT_LFS_SKIP_SMUDGE=1 git clone https://huggingface.co/koboldcpp/mmproj
