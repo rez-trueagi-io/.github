@@ -1,0 +1,32 @@
+name: Clone and Push to GitHub
+
+on:
+  workflow_dispatch:
+
+jobs:
+  clone-and-push:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout the repository
+      uses: actions/checkout@v3
+
+    - name: Install Git LFS
+      run: |
+        sudo apt-get install git-lfs
+        git lfs install
+
+    - name: Clone the repository from Hugging Face
+      run: |
+        git clone https://huggingface.co/koboldcpp/mmproj
+        
+    - name: Push to GitHub
+      run: |
+        cd mmproj
+        git init
+        git remote add origin https://github.com/rez-trueagi-io/huggingface.co/koboldcpp/mmproj.git
+        git add .
+        git commit -m "Initial commit of mmproj from Hugging Face"
+        git push -u origin main
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
